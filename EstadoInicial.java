@@ -15,11 +15,14 @@ public class EstadoInicial {
      */
     private int[] conexiones;
 
+    //para el sensor en posición i, su capacidad restante para almacenar.
+    private double[] capacidadRestante;
     /**
      * Este vector tendrá tamaño sensor.size()+centros.size().
      * Indica el número de conexiones que tiene cada sensor/centro
      */
     private int[] contador_conexiones;
+
 
     /*Constructor*/
     public EstadoInicial (int nsensores, int semilla, int ncentros) {
@@ -101,6 +104,7 @@ public class EstadoInicial {
         conexiones[id1] = id2;
     }
 
+
     /*
     Si no tiene conexión no se puede romper
     Si id1 es un centro, no puede tener una conexión
@@ -124,6 +128,12 @@ public class EstadoInicial {
         boolean[] visitado = new boolean[sensor.size()];
         Arrays.fill(visitado, false);
         return dfs(sensorId, visitado);
+    }
+
+
+    public boolean is_valid(int c1, int c2){
+        double info = sensor.get(c1).getCapacidad();
+        return info <= capacidadRestante[c2];
     }
 
     /* mover estos métodos a la clase del algoritmo
