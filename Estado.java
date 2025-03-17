@@ -1,7 +1,8 @@
 import IA.Red.*;
 import java.util.*;
+import java.util.Random;
 
-public class EstadoInicial {
+public class Estado {
 
     /* array lists */
     private Sensores sensor;
@@ -14,8 +15,6 @@ public class EstadoInicial {
      * De sensor.size() hasta sensor.size()+centros.size()-1 serán los identificadores de los centros
      */
     private int[] conexiones;
-
-    //para el sensor en posición i, su capacidad restante para almacenar.
     private double[] capacidadRestante;
     /**
      * Este vector tendrá tamaño sensor.size()+centros.size().
@@ -23,12 +22,12 @@ public class EstadoInicial {
      */
     private int[] contador_conexiones;
 
-
     /*Constructor*/
-    public EstadoInicial (int nsensores, int semilla, int ncentros) {
+    public Estado (int nsensores, int semilla, int ncentros) {
         this.sensor = new Sensores(nsensores, semilla);
         this.centros = new CentrosDatos(ncentros, semilla);
         this.conexiones = new int[nsensores] ;
+        this.capacidadRestante = new double[nsensores];
         Arrays.fill(conexiones, -1);
         this.contador_conexiones = new int[nsensores+ncentros];
         Arrays.fill(contador_conexiones, 0);
@@ -72,6 +71,25 @@ public class EstadoInicial {
         return conexiones[sensorId] != -1;
     }
 
+    private double dist(int id1, int id2, boolean escentro) {
+        double x1, y1, x2, y2;
+
+        /* id1 siempre será sensor */
+
+        x1 = sensor.get(id1).getCoordX();
+        y1 = sensor.get(id1).getCoordY();
+
+        if (escentro){
+            x2 = centros.get(id2).getCoordX();
+            y2 = centros.get(id2).getCoordY();
+        }
+        else {
+            x2 = sensor.get(id2).getCoordX();
+            y2 = sensor.get(id2).getCoordY();
+        }
+        return Math.sqrt((Math.pow(2,(x1-x2))) + (Math.pow(2,(x2-y2))));
+    }
+
     /*Métodos públicos*/
     /**
      * Conectamos id1 (origen) con id2 (destino)
@@ -85,10 +103,10 @@ public class EstadoInicial {
             return;
         }
 
-        if (esta_transmitiendo(id1)) {
+        /*if (esta_transmitiendo(id1)) {
             System.out.println("Error: El sensor " + id1 + "ya está transmitiendo información.");
             return;
-        }
+        }*/
 
         if (conexiones[id1] == id2) {
             System.out.println("Error: La conexión entre " + id1 + " y " + id2 + " ya está establecida.");
@@ -100,10 +118,15 @@ public class EstadoInicial {
             return;
         }
 
+        if (esta_transmitiendo(id1)) {
+            romper_conexion(id1);
+        }
+
         ++contador_conexiones[id2];
         conexiones[id1] = id2;
-    }
 
+        System.out.println("Se ha creado la conexión entre " + id1 + " y " + id2);
+    }
 
     /*
     Si no tiene conexión no se puede romper
@@ -122,6 +145,8 @@ public class EstadoInicial {
         int id2 = conexiones[id1];
         --contador_conexiones[id2];
         conexiones[id1] = -1;
+
+        System.out.println("Se ha roto la conexión entre " + id1 + " y " + id2);
     }
 
     public boolean conexion_con_centro(int sensorId) {
@@ -130,12 +155,70 @@ public class EstadoInicial {
         return dfs(sensorId, visitado);
     }
 
+    /* esta función genera el estado inicial aleatoriamente */
+    public void estado_inicial_random () {
+        Random rand = new Random();
+        for(int i = 0; i < sensor.size(); i++){
+            capacidadRestante[i] = sensor.get(i).getCapacidad()*2;
+        }
+        for (int i = 0; i < sensor.size(); i++) {
+            int centroId = sensor.size() + rand.nextInt(centros.size());
+            if (es_valido_centros(centroId)) {
+                conexiones[i] = centroId;
+                ++contador_conexiones[centroId];
+            } else {
+                int sensorId = rand.nextInt(sensor.size());
+                while (!es_valido_sensor(sensorId) && isValid(i, sensorId)) {
+                    sensorId = rand.nextInt(sensor.size());
+                    capacidadRestante[sensorId] -= sensor.get(i).getCapacidad();
+                    sensor.get(sensorId).setCapacidad((int)sensor.get(i).getCapacidad() + (int) sensor.get(sensorId).getCapacidad());
 
-    public boolean is_valid(int c1, int c2){
+                }
+                conexiones[i] = sensorId;
+                ++contador_conexiones[sensorId];
+            }
+
+        }
+    }
+
+    /* esta función genera el estado inicial conectando al centro más cercano y teniendo en cuenta las restricciones */
+    public void estado_inicial_cercania () {
+        for (int i = 0; i < sensor.size(); ++i) {
+            double min = Double.POSITIVE_INFINITY;
+            int id_min = -1;
+
+            for (int j = 0; j < centros.size(); ++j) {
+                if (es_valido_centros(j + sensor.size())) {
+                    double distancia = dist(i, j, true);
+                    if (distancia < min) {
+                        min = distancia;
+                        id_min = j + sensor.size();
+                    }
+                }
+            }
+            if (id_min != -1) {
+                conexiones[i] = id_min;
+                ++contador_conexiones[id_min];
+            }
+
+            else { // si no se puede conectar a un centro entonces se conecta a un sensor random
+                Random rand = new Random();
+                int sensorId = rand.nextInt(sensor.size());
+                while (!es_valido_sensor(sensorId) & isValid(i, sensorId)) {
+                    sensorId = rand.nextInt(sensor.size());
+                    capacidadRestante[sensorId] -= sensor.get(i).getCapacidad();
+                    sensor.get(sensorId).setCapacidad((int)sensor.get(i).getCapacidad() + (int) sensor.get(sensorId).getCapacidad());
+                }
+                conexiones[i] = sensorId;
+                ++contador_conexiones[sensorId];
+            }
+        }
+    }
+
+    public boolean isValid(int c1, int c2){
         double info = sensor.get(c1).getCapacidad();
         return info <= capacidadRestante[c2];
     }
-
     /* mover estos métodos a la clase del algoritmo
     public double cantidad_a_transmitir(int sensorId) {
         double capacidad = sensor.get(sensorId).getCapacidad();
