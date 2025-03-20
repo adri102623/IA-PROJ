@@ -2,7 +2,7 @@ import IA.Red.*;
 import java.util.*;
 import java.util.Random;
 
-public class Estado {
+public class Estado implements Cloneable {
 
     /* array lists */
     private Sensores sensor;
@@ -218,6 +218,13 @@ public class Estado {
     public boolean isValid(int c1, int c2){
         double info = sensor.get(c1).getCapacidad();
         return info <= capacidadRestante[c2];
+    }
+
+    /*
+     * A ACABAR
+     */
+    public Estado clone() {
+
     }
     /* mover estos métodos a la clase del algoritmo
     public double cantidad_a_transmitir(int sensorId) {
